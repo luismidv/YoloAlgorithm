@@ -1,0 +1,9 @@
+torch
+pathlib
+pandas
+bs4
+numpy
+supervision
+cv2
+torchvision
+tqdm

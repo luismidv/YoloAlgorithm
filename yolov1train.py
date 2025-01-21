@@ -9,6 +9,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 import torch.nn.functional as F
 import numpy as np
+import databuilder as db
 
 #NEURAL NETWORK SCHEMA
     #24 CONV LAYERS
@@ -284,29 +285,48 @@ def inter_over_union(bbox1,bbox2,ground_truth):
 
 
 data_prepare = dp.Datapreparer("./cfg/archive")
+
+
+
 train_transform, test_transform = data_prepare.data_transformations()
+
+
+
 #data_treat_check(image_directory, anotations_directory)
+
+
 images,bboxes = data_prepare.extract_info_xml(trainbool = True)
-print(f"Bboxes {bboxes[0]}")
-print("XML train read finished")
-images_test,bboxes_test = data_prepare.extract_info_xml(trainbool = False)
-print("XML test read finished")
-print(len(bboxes))
-train_data = dp.myDataset(images,bboxes,transform=train_transform)
+#db.check_format(images)
+#db.check_format(bboxes)
+
+
+
+db.yolo_xml_builder(images,bboxes)
+# print(f"Bboxes {bboxes[0]}")
+# print("XML train read finished")
+
+#images_test,bboxes_test = data_prepare.extract_info_xml(trainbool = False)
+
+
+#train_data = dp.myDataset(images,bboxes,transform=train_transform)
 #test_data = dp.myDataset(images_test,bboxes_test,transform=test_transform)
-train_loader = DataLoader(train_data, batch_size=1, shuffle = True)
+#train_loader = DataLoader(train_data, batch_size=1, shuffle = True)
 #test_loader = DataLoader(test_data, batch_size=64, shuffle = True)
 
-parameters = {
-    'initial_sizes' : (3,448,448),
-    'num_classes': 20
-}
+# parameters = {
+#     'initial_sizes' : (3,448,448),
+#     'num_classes': 20
+# }
 
-device = torch.device("cpu")
-myYoloNet = YoloNeuralNet(parameters)
-loss_fn = nn.MSELoss()
-optimizer = torch.optim.Adam(myYoloNet.parameters(), lr=3e-4)
-prediction = model_training(myYoloNet, train_loader, device, loss_fn, optimizer)
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# myYoloNet = YoloNeuralNet(parameters)
+# loss_fn = nn.MSELoss()
+# optimizer = torch.optim.Adam(myYoloNet.parameters(), lr=3e-4)
+                # prediction = model_training(myYoloNet, train_loader, device, loss_fn, optimizer)
+
+
+
+
 #get_data_from_prediction(prediction)
 #non_max_superssion(prediction,0.5)
 #prediction = prediction.view(30,7,7)

@@ -1,12 +1,9 @@
-from pyexpat import features
 import torch
 import pandas as pd
 import pathlib
 import os
-import itertools
 import torchvision.datasets
 from bs4 import BeautifulSoup
-from PIL import Image
 from mpl_toolkits.mplot3d.proj3d import transform
 from tzdata import IANA_VERSION
 import numpy as np
@@ -17,12 +14,14 @@ from torch.utils.data import dataloader
 import splitfolders
 from torchvision import transforms
 from tqdm import tqdm
-import albumentations as A
-from albumentations.pytorch import ToTensorV2
+import itertools
+
 
 
 
 class myDataset(Dataset):
+    #DATASET CLASS TO ITERATE OVER PHOTOS AND COORDINATES
+
     def __init__(self,features,labels,transform=None):
         super().__init__()
         print("Initializing Dataset")
@@ -33,11 +32,15 @@ class myDataset(Dataset):
 
 
     def __len__(self):
+        #LEN METHOD OF THE DATASET CLASS
         print(f"Length of features {len(self.features)}")
         print(f"Length of labels {len(self.labels)}")
         return len(self.labels)
 
     def __getitem__(self,idx):
+        #METHOD TO ITERATE OVER EACH TRAINING EXAMPLE
+        #IN THIS CASE WE ARE USING THE TRANSFORMS DEFINED IN THE CLASS ATTRIBUTES
+
         features_iter = self.features[idx]
         labels_iter = self.labels[idx]
 
@@ -50,13 +53,15 @@ class myDataset(Dataset):
 
         return features_iterated,labels_iterated
 
-    def show_attributes(self):
-        print(f"Images {self.images}")
-        print(f"Labels {self.labels}")
+    
 
 
 class Datapreparer():
+    #CLASS TO PREPARE PHOTOS AND COORDINATES FOR DATASET CLASS
+
     def __init__(self,data_path):
+        #INITIATE EACH DIRECTORY
+
         data_path = pathlib.Path(data_path)
         self.image_directory = data_path.joinpath('VOCtrainval_06-Nov-2007/VOCdevkit/VOC2007/JPEGImages')
         self.anotations_directory = data_path.joinpath('VOCtrainval_06-Nov-2007/VOCdevkit/VOC2007/Annotations')
@@ -93,11 +98,11 @@ class Datapreparer():
             "tvmonitor" : 20
         }
 
-
-
-
-
     def extract_info_xml(self,trainbool):
+        #THIS METHOD EXTRACT THE INFORMATION FROM THE XML FILE:
+            #BOUNDING BOX COORDINATES
+            #NAME OF THE ITEM IN THE BBOX 
+
         document_dict = {}
         if trainbool:
             file_list = os.listdir(self.anotations_directory)
@@ -136,15 +141,14 @@ class Datapreparer():
         data_dict = self.get_images_folder(document_dict)
         image_list = self.get_image_with_data(data_dict,trainbool)
         image,bboxes = self.get_image_bboxes(data_dict, trainbool)
-        #bboxes = bbox_iterator(bboxes)
         return image,bboxes
 
 
     def get_images_folder(self,data_dict):
+        #THIS FUNCTION DEFINES THE NEW FOLDER WITH THE IMAGES.
         images_names,values = zip(*data_dict.items())
         images_names = list(images_names)
         values = list(values)
-
 
         position = 0
         for image in list(images_names):
@@ -157,8 +161,9 @@ class Datapreparer():
         return data_dict
 
     def get_image_with_data(self,data_dict,train):
-        image_list = []
+        #THIS FUNCITON RETURNS A LIST WITH EVERY IMAGE TURNED INTO PIXELS USING OPENCV
 
+        image_list = []
         image_names = data_dict.keys()
         image_names = list(image_names)
         if train:
@@ -169,12 +174,10 @@ class Datapreparer():
             print(f"Since test is true image_path is {image_path}")
 
         for image in image_names:
-
             new_image = image_path.joinpath(image)
-
             try:
-                new_image = Image.open(new_image)
-                new_image = np.array(new_image)
+                image = cv2.imread(image)(new_image)
+                image = cv2.cvtColor(image, C)
                 image_list.append(new_image)
 
             except Exception as error:
@@ -183,14 +186,15 @@ class Datapreparer():
                 break
 
         return image_list
+    
     def image_show_fn(self,document_dict,image_folder):
         #REMEMBER THAT WE REMOVED TOTAL OBJECTS FROM EXTRACT_INFO_XML SO THIS FUNCTION WONT WORK
         images,bbox = zip(*document_dict.items())
         images = list(images)
         bbox = list(bbox)
         bbox_list = bbox[1]
-    #If you want to initialize the array length to the total of objects in the image
-    #total_objects = bbox_list[0][0]
+        #If you want to initialize the array length to the total of objects in the image
+        #total_objects = bbox_list[0][0]
         anotations_array = np.empty((0,4))
         every_object = []
         for bbox in bbox_list:
@@ -234,6 +238,8 @@ class Datapreparer():
         sv.plot_image(anotated_frame)
 
     def data_transformations(self):
+        #THIS METHOD DEFINES THE MAIN TRANSFORMATIONS APPLIED TO TRAINING AND TEST DATA
+
         train_transformations = transforms.Compose([
             transforms.Resize((448, 448)),
             transforms.RandomHorizontalFlip(),
@@ -254,6 +260,8 @@ class Datapreparer():
         return train_transformations, test_transformations
 
     def get_image_bboxes(self,data_dict,train):
+        #THIS METHOD RECEIVES A DICTIONARY WITH DATA AND BOOL
+        #RETURN TWO LIST THAT ARE PASSED LATER TO THE DATASET CLASS
         images,bboxes = zip(*data_dict.items())
         images = list(images)
         bboxes = list(bboxes)
@@ -265,7 +273,8 @@ class Datapreparer():
             image_path = self.image_directory_test
         for image in images:
             new_path = os.path.join(image_path, image)
-            image = Image.open(new_path)
+            image = cv2.imread(new_path)
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             images_list.append(image)
         return images_list, bboxes
 
