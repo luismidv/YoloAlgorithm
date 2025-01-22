@@ -4,17 +4,15 @@ import pathlib
 import os
 import torchvision.datasets
 from bs4 import BeautifulSoup
-from mpl_toolkits.mplot3d.proj3d import transform
-from tzdata import IANA_VERSION
 import numpy as np
 from torch.utils.data import Dataset, DataLoader
 import supervision as sv
 import cv2
 from torch.utils.data import dataloader
-import splitfolders
 from torchvision import transforms
 from tqdm import tqdm
 import itertools
+from PIL import Image
 
 
 
@@ -176,9 +174,9 @@ class Datapreparer():
         for image in image_names:
             new_image = image_path.joinpath(image)
             try:
-                image = cv2.imread(image)(new_image)
-                image = cv2.cvtColor(image, C)
-                image_list.append(new_image)
+                new_image = Image.open(new_image)
+                new_image = np.array(new_image)
+                image_list.append(image)
 
             except Exception as error:
                 print(f"Image {image} failed at loading")
@@ -273,8 +271,7 @@ class Datapreparer():
             image_path = self.image_directory_test
         for image in images:
             new_path = os.path.join(image_path, image)
-            image = cv2.imread(new_path)
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            image = Image.open(new_path)
             images_list.append(image)
         return images_list, bboxes
 

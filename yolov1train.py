@@ -1,8 +1,6 @@
 import torch
 from PIL.TiffTags import TYPES
-from jinja2.optimizer import Optimizer
 from matplotlib.colors import cnames
-from sympy import print_tree
 from torch import nn
 import dataprepare as dp
 from torch.utils.data import DataLoader
@@ -134,8 +132,6 @@ def model_training2(model,dataloader,device, loss_fn, optimizer):
             bbox1 = prediction_toloss[1:5]
             bbox2 = prediction_toloss[6:10]
             usefull_bbox = inter_over_union(bbox1,bbox2,Y[0][i])
-            print(f"Prediction shape {usefull_bbox}")
-            print(f"Gr shape {Y[0][i]}")
             loss = F.mse_loss(usefull_bbox, Y[0][i][0:-1])
             loss.backward()
             optimizer.step()
@@ -144,12 +140,13 @@ def model_training2(model,dataloader,device, loss_fn, optimizer):
 
         break
 
-def model_training(model,dataloader,device, loss_fn, optimizer):
+def model_training(model,dataloader,device, loss_fn, optimizer, total_loss):
     model_accuracy = []
     model_loss = []
     count = 0
     for X,Y in tqdm(dataloader):
         #cell_responsible = calculate_cell_for_detection(Y)
+        print(f"Training data type {type(X)}")
         pred_dict = {}
         X = X.to(device)
         Y = Y.to(device)
@@ -158,8 +155,6 @@ def model_training(model,dataloader,device, loss_fn, optimizer):
         prediction = model(X)
         item_list = grid_determination(prediction,Y)
         #prediction = non_max_superssion(prediction,0.5)
-        print(f"prediction {prediction[1:5,1,1].shape}")
-        print(f"Gr shape {Y[0][0][:-1].shape}")
         #bbox_list = grid_determination(prediction,Y)
         keys = list(pred_dict.keys())
         item_num = 0
@@ -167,7 +162,7 @@ def model_training(model,dataloader,device, loss_fn, optimizer):
 
         for item in item_list:
             print(f"Numero de objetos {len(item_list)} | Iteraccion numbero {item_num}")
-            loss = F.mse_loss(prediction[1:5,int(item[0]),int(item[1])], Y[0][item_num][:-1])
+            loss = loss_fn(prediction[1:5,int(item[0]),int(item[1])], Y[0][item_num][:-1])
             total_loss += loss
             item_num = item_num + 1
         optimizer.zero_grad()
@@ -176,13 +171,6 @@ def model_training(model,dataloader,device, loss_fn, optimizer):
         optimizer.step()
 
         
-
-
-
-
-
-
-
 def grid_determination(prediction,y):
     print(f"Label {y}")
     print(f"Label length{y.shape}")
@@ -281,57 +269,45 @@ def inter_over_union(bbox1,bbox2,ground_truth):
         return bbox2
 
 
-
-
-
 data_prepare = dp.Datapreparer("./cfg/archive")
-
-
-
 train_transform, test_transform = data_prepare.data_transformations()
-
-
-
 #data_treat_check(image_directory, anotations_directory)
-
-
 images,bboxes = data_prepare.extract_info_xml(trainbool = True)
 #db.check_format(images)
 #db.check_format(bboxes)
 
-
-
-db.yolo_xml_builder(images,bboxes)
+#db.json_data_builder(images,bboxes)
 # print(f"Bboxes {bboxes[0]}")
 # print("XML train read finished")
 
-#images_test,bboxes_test = data_prepare.extract_info_xml(trainbool = False)
+images_test,bboxes_test = data_prepare.extract_info_xml(trainbool = False)
 
 
-#train_data = dp.myDataset(images,bboxes,transform=train_transform)
-#test_data = dp.myDataset(images_test,bboxes_test,transform=test_transform)
-#train_loader = DataLoader(train_data, batch_size=1, shuffle = True)
-#test_loader = DataLoader(test_data, batch_size=64, shuffle = True)
+train_data = dp.myDataset(images,bboxes,transform=train_transform)
+test_data = dp.myDataset(images_test,bboxes_test,transform=test_transform)
+train_loader = DataLoader(train_data, batch_size=1, shuffle = True)
+test_loader = DataLoader(test_data, batch_size=64, shuffle = True)
 
-# parameters = {
-#     'initial_sizes' : (3,448,448),
-#     'num_classes': 20
-# }
+parameters = {
+     'initial_sizes' : (3,448,448),
+     'num_classes': 20
+}
 
-# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-# myYoloNet = YoloNeuralNet(parameters)
-# loss_fn = nn.MSELoss()
-# optimizer = torch.optim.Adam(myYoloNet.parameters(), lr=3e-4)
-                # prediction = model_training(myYoloNet, train_loader, device, loss_fn, optimizer)
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+myYoloNet = YoloNeuralNet(parameters)
+loss_fn = nn.MSELoss()
+total_loss = nn.MSELoss()
+optimizer = torch.optim.Adam(myYoloNet.parameters(), lr=3e-4)
+prediction = model_training(myYoloNet, train_loader, device, loss_fn, optimizer,total_loss)
 
 
 
 
-#get_data_from_prediction(prediction)
-#non_max_superssion(prediction,0.5)
-#prediction = prediction.view(30,7,7)
-#iou_list = inter_over_union(prediction,bboxes)
-##print(f"IOU {iou_list}")
+get_data_from_prediction(prediction)
+non_max_superssion(prediction,0.5)
+prediction = prediction.view(30,7,7)
+iou_list = inter_over_union(prediction,bboxes)
+print(f"IOU {iou_list}")
 
 
 
